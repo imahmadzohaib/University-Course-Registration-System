@@ -2,6 +2,9 @@
 
 > A console-based course registration engine written in modern C++, built around four classic data structures — a **hash map**, a **binary search tree**, a **priority queue**, and a **singly linked list** — with the tree, queue, and list implemented from scratch. The emphasis throughout is on picking the right structure for each job and understanding its time/space trade-offs.
 
+🔗 **Live demo:** [https://imahmadzohaib.github.io/University-Course-Registration-System/](https://imahmadzohaib.github.io/University-Course-Registration-System/)
+
+
 ![C++](https://img.shields.io/badge/C%2B%2B-11-00599C?logo=cplusplus&logoColor=white)
 ![Build](https://img.shields.io/badge/build-g%2B%2B%20%7C%20clang%2B%2B-brightgreen)
 ![Data Structures](https://img.shields.io/badge/data%20structures-from%20scratch-orange)
