@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>University Course Registration System — Live Demo</title>
+
+<!-- xterm.js terminal (loaded from CDN at runtime in the visitor's browser) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: #0b0f17;
+    color: #e6edf3;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 14px 18px;
+    background: #0d1320;
+    border-bottom: 1px solid #1f2733;
+  }
+  .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: .2px; }
+  header .tags { font-size: 11px; color: #8b97a7; }
+  header p { margin: 6px 0 0; font-size: 12.5px; color: #9aa7b8; line-height: 1.5; }
+  header p b { color: #cdd7e4; }
+  button#restart {
+    margin-left: auto;
+    background: #1f6feb; color: #fff; border: 0;
+    padding: 6px 13px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  button#restart:hover { background: #2f7ff6; }
+  #wrap { flex: 1; min-height: 0; padding: 12px 14px 16px; }
+  #terminal { height: 100%; }
+  #status { padding: 20px; color: #8b97a7; font-size: 13px; font-family: ui-monospace, monospace; }
+  .xterm .xterm-viewport::-webkit-scrollbar { width: 10px; }
+  .xterm .xterm-viewport::-webkit-scrollbar-thumb { background: #263041; border-radius: 6px; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <h1>University Course Registration System</h1>
+      <span class="tags">C++ · WebAssembly · data structures from scratch</span>
+      <button id="restart" title="Reload the demo">Restart</button>
+    </div>
+    <p>Runs entirely in your browser — the C++ program is compiled to WebAssembly.
+       Type at the prompt and press <b>Enter</b>. Start with <b>14</b> to load sample data,
+       then try <b>8</b> to list courses or <b>3</b> to register.</p>
+  </header>
+
+  <div id="wrap">
+    <div id="status">Loading WebAssembly module…</div>
+    <div id="terminal" style="display:none"></div>
+  </div>
+
+  <!-- xterm.js + fit addon -->
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+
+  <script>
+    // ---- Terminal setup ---------------------------------------------------
+    const term = new Terminal({
+      convertEol: true,            // '\n' -> '\r\n' so plain newlines work
+      cursorBlink: true,
+      fontFamily: 'ui-monospace, "Cascadia Code", Menlo, Consolas, monospace',
+      fontSize: 14,
+      theme: { background: '#0b0f17', foreground: '#e6edf3', cursor: '#58a6ff' }
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+
+    function showTerminal() {
+      document.getElementById('status').style.display = 'none';
+      const el = document.getElementById('terminal');
+      el.style.display = 'block';
+      term.open(el);
+      fit.fit();
+      term.focus();
+    }
+    window.addEventListener('resize', () => { try { fit.fit(); } catch (e) {} });
+
+    // ---- Line-based input with type-ahead queue ---------------------------
+    const pendingLines = [];     // completed lines waiting to be consumed
+    let lineResolver = null;     // pending readLine() promise resolver
+    let buf = "";                // current line being edited
+
+    term.onData(data => {
+      for (const ch of data) {
+        if (ch === '\r') {                          // Enter
+          term.write('\n');
+          const line = buf; buf = "";
+          if (lineResolver) { const r = lineResolver; lineResolver = null; r(line); }
+          else pendingLines.push(line);
+        } else if (ch === '\u007F' || ch === '\b') { // Backspace / Delete
+          if (buf.length) { buf = buf.slice(0, -1); term.write('\b \b'); }
+        } else if (ch === '\u0003') {                // Ctrl-C
+          term.write('^C\n'); buf = "";
+        } else if (ch >= ' ') {                      // printable char -> echo
+          buf += ch; term.write(ch);
+        }
+      }
+    });
+
+    // ---- Emscripten Module hooks (must exist before registration.js) ------
+    var Module = {
+      print:     (t) => term.write(t + '\n'),
+      printErr:  (t) => term.write(t + '\n'),
+      termWrite: (t) => term.write(t),
+      readLine:  () => new Promise(resolve => {
+        if (pendingLines.length) resolve(pendingLines.shift());
+        else lineResolver = resolve;
+      }),
+      onRuntimeInitialized: () => showTerminal(),
+      onAbort:   (what) => { showTerminal(); term.write('\r\n[aborted] ' + what + '\r\n'); }
+    };
+
+    document.getElementById('restart').addEventListener('click', () => location.reload());
+  </script>
+
+  <!-- Emscripten output: produced by web/build.sh (registration.js + registration.wasm) -->
+  <script src="registration.js"></script>
+</body>
+</html>
